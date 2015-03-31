@@ -4,7 +4,7 @@ from requests.exceptions import (RequestException, MissingSchema,
 import gevent
 from locust.clients import HttpSession
 from locust.stats import global_stats
-from testcases import WebserverTestCase
+from .testcases import WebserverTestCase
 
 class TestHttpSession(WebserverTestCase):
     def test_get(self):
@@ -21,7 +21,7 @@ class TestHttpSession(WebserverTestCase):
 
     def test_wrong_url(self):
         for url, exception in (
-                (u"http://\x94", InvalidURL),
+                ("http://\x94", InvalidURL),
                 ("telnet://127.0.0.1", InvalidSchema),
                 ("127.0.0.1", MissingSchema), 
             ):

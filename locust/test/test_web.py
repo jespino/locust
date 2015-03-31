@@ -2,7 +2,7 @@ import csv
 import json
 import sys
 import traceback
-from StringIO import StringIO
+from io import StringIO
 
 import requests
 import mock
