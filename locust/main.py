@@ -1,7 +1,7 @@
 import locust
 from . import runners
 
-import gevent
+import guv
 import sys
 import os
 import signal
@@ -395,7 +395,7 @@ def main():
     if not options.no_web and not options.slave:
         # spawn web greenlet
         logger.info("Starting web monitor at %s:%s" % (options.web_host or "*", options.port))
-        main_greenlet = gevent.spawn(web.start, locust_classes, options)
+        main_greenlet = guv.spawn(web.start, locust_classes, options)
 
     if not options.master and not options.slave:
         runners.locust_runner = LocalLocustRunner(locust_classes, options)
@@ -415,7 +415,7 @@ def main():
 
     if not options.only_summary and (options.print_stats or (options.no_web and not options.slave)):
         # spawn stats printing greenlet
-        gevent.spawn(stats_printer)
+        guv.spawn(stats_printer)
 
     def shutdown(code=0):
         """
@@ -434,11 +434,12 @@ def main():
     def sig_term_handler():
         logger.info("Got SIGTERM signal")
         shutdown(0)
-    gevent.signal(signal.SIGTERM, sig_term_handler)
+    # TODO: PORT TO guv
+    #gevent.signal(signal.SIGTERM, sig_term_handler)
 
     try:
         logger.info("Starting Locust %s" % version)
-        main_greenlet.join()
+        main_greenlet.wait()
         code = 0
         if len(runners.locust_runner.errors):
             code = 1

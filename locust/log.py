@@ -25,12 +25,20 @@ class StdOutWrapper(object):
     def write(self, s):
         stdout_logger.info(s.strip())
 
+    def flush(self):
+        pass
+        # TODO
+
 class StdErrWrapper(object):
     """
     Wrapper for stderr
     """
     def write(self, s):
         stderr_logger.error(s.strip())
+
+    def flush(self):
+        pass
+        # TODO
 
 # set up logger for the statistics tables
 console_logger = logging.getLogger("console_logger")

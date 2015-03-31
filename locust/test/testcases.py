@@ -1,6 +1,6 @@
 import base64
-import gevent
-import gevent.pywsgi
+import guv
+from guv import wsgi
 import random
 import unittest
 from copy import copy
@@ -13,7 +13,7 @@ from flask import Flask, request, redirect, make_response, send_file, Response, 
 
 def safe_repr(obj, short=False):
     """
-    Function from python 2.7's unittest.util. Used in methods that is copied 
+    Function from python 2.7's unittest.util. Used in methods that is copied
     from 2.7's unittest.TestCase to work in python 2.6.
     """
     _MAX_LENGTH = 80
@@ -35,21 +35,21 @@ def ultra_fast():
 
 @app.route("/fast")
 def fast():
-    gevent.sleep(random.choice([0.1, 0.2, 0.3]))
+    guv.sleep(random.choice([0.1, 0.2, 0.3]))
     return "This is a fast response"
 
 @app.route("/slow")
 def slow():
     delay = request.args.get("delay")
     if delay:
-        gevent.sleep(float(delay))
+        guv.sleep(float(delay))
     else:
-        gevent.sleep(random.choice([0.5, 1, 1.5]))
+        guv.sleep(random.choice([0.5, 1, 1.5]))
     return "This is a slow response"
 
 @app.route("/consistent")
 def consistent():
-    gevent.sleep(0.2)
+    guv.sleep(0.2)
     return "This is a consistent response"
 
 @app.route("/request_method", methods=["POST", "GET", "HEAD", "PUT", "DELETE"])
@@ -73,7 +73,7 @@ def failed_request():
 def do_redirect():
     delay = request.args.get("delay")
     if delay:
-        gevent.sleep(float(delay))
+        guv.sleep(float(delay))
     url = request.args.get("url", "/ultra_fast")
     return redirect(url)
 
@@ -118,11 +118,11 @@ class LocustTestCase(unittest.TestCase):
             event = getattr(events, name)
             if isinstance(event, events.EventHook):
                 self._event_handlers[event] = copy(event._handlers)
-                      
+
     def tearDown(self):
         for event, handlers in self._event_handlers.items():
             event._handlers = handlers
-    
+
     def assertIn(self, member, container, msg=None):
         """
         Just like self.assertTrue(a in b), but with a nicer default message.
@@ -132,7 +132,7 @@ class LocustTestCase(unittest.TestCase):
             standardMsg = '%s not found in %s' % (safe_repr(member),
                                                   safe_repr(container))
             self.fail(self._formatMessage(msg, standardMsg))
-    
+
     def assertLess(self, a, b, msg=None):
         """Just like self.assertTrue(a < b), but with a nicer default message."""
         if not a < b:
@@ -157,16 +157,17 @@ class LocustTestCase(unittest.TestCase):
             standardMsg = '%s not greater than or equal to %s' % (safe_repr(a), safe_repr(b))
             self.fail(self._formatMessage(msg, standardMsg))
 
-            
+
 class WebserverTestCase(LocustTestCase):
     """
     Test case class that sets up an HTTP server which can be used within the tests
     """
     def setUp(self):
         super(WebserverTestCase, self).setUp()
-        self._web_server = gevent.pywsgi.WSGIServer(("127.0.0.1", 0), app, log=None)
-        gevent.spawn(lambda: self._web_server.serve_forever())
-        gevent.sleep(0.01)
+        server_sock = guv.listen(("127.0.0.1", 0))
+        self._web_server = wsgi.serve(server_sock, app).serve_forever()
+        guv.spawn(lambda: self._web_server.serve_forever())
+        guv.sleep(0.01)
         self.port = self._web_server.server_port
         global_stats.clear_all()
 

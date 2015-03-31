@@ -1,9 +1,10 @@
 import struct
 import logging
 
-import gevent
-from gevent import socket
-from gevent import queue
+import guv
+import guv.queue
+
+import socket
 
 from locust.exception import LocustError
 from .protocol import Message
@@ -43,7 +44,7 @@ class Client(object):
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.command_queue = gevent.queue.Queue()
+        self.command_queue = guv.queue.Queue()
         self.socket = self._connect()
 
     def _connect(self):
@@ -58,7 +59,7 @@ class Client(object):
                 except:
                     pass
 
-        gevent.spawn(handle)
+        guv.spawn(handle)
         return sock
 
     def send(self, event):
@@ -71,7 +72,7 @@ class Server(object):
     def __init__(self, host, port):
         self.host = "0.0.0.0" if host == "*" else host
         self.port = port
-        self.event_queue = gevent.queue.Queue()
+        self.event_queue = guv.queue.Queue()
         self.command_dispatcher = self._listen()
 
     def send(self, msg):
@@ -115,7 +116,7 @@ class Server(object):
                 _socket, _addr = sock.accept()
                 logger.info("Slave connected")
                 slaves.append(_socket)
-                gevent.spawn(lambda: handle_slave(_socket))
+                guv.spawn(lambda: handle_slave(_socket))
 
-        gevent.spawn(listener)
+        guv.spawn(listener)
         return dispatch_command

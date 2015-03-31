@@ -1,8 +1,9 @@
-import gevent
-from gevent import monkey, GreenletExit
+import guv
+from guv import patcher
+from greenlet import GreenletExit
 import collections
 
-monkey.patch_all(thread=False)
+patcher.monkey_patch(threading=False)
 
 from time import time
 import sys
@@ -329,7 +330,7 @@ class TaskSet(object, metaclass=TaskSetMeta):
         self._sleep(seconds)
 
     def _sleep(self, seconds):
-        gevent.sleep(seconds)
+        guv.sleep(seconds)
 
     def interrupt(self, reschedule=True):
         """

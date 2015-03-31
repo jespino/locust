@@ -7,9 +7,8 @@ import logging
 from time import time
 from hashlib import md5
 
-import gevent
-from gevent import GreenletExit
-from gevent.pool import Group
+import guv
+from greenlet import GreenletExit
 
 from . import events
 from .stats import global_stats
@@ -32,7 +31,7 @@ class LocustRunner(object):
         self.num_clients = options.num_clients
         self.num_requests = options.num_requests
         self.host = options.host
-        self.locusts = Group()
+        self.locusts = guv.GreenPool()
         self.state = STATE_INIT
         self.hatching_greenlet = None
         self.exceptions = {}
@@ -55,7 +54,7 @@ class LocustRunner(object):
 
     @property
     def user_count(self):
-        return len(self.locusts)
+        return self.locusts.running()
 
     def weight_locusts(self, amount, stop_timeout = None):
         """
@@ -114,9 +113,9 @@ class LocustRunner(object):
                     except GreenletExit:
                         pass
                 new_locust = self.locusts.spawn(start_locust, locust)
-                if len(self.locusts) % 10 == 0:
-                    logger.debug("%i locusts hatched" % len(self.locusts))
-                gevent.sleep(sleep_time)
+                if self.locusts.running() % 10 == 0:
+                    logger.debug("%i locusts hatched" % self.locusts.running())
+                guv.sleep(sleep_time)
 
         hatch()
         if wait:
@@ -125,7 +124,7 @@ class LocustRunner(object):
 
     def kill_locusts(self, kill_count):
         """
-        Kill a kill_count of weighted locusts from the Group() object in self.locusts
+        Kill a kill_count of weighted locusts from the GreenPool() object in self.locusts
         """
         bucket = self.weight_locusts(kill_count)
         kill_count = len(bucket)
@@ -198,7 +197,7 @@ class LocalLocustRunner(LocustRunner):
         events.locust_error += on_locust_error
 
     def start_hatching(self, locust_count=None, hatch_rate=None, wait=False):
-        self.hatching_greenlet = gevent.spawn(lambda: super(LocalLocustRunner, self).start_hatching(locust_count, hatch_rate, wait=wait))
+        self.hatching_greenlet = guv.spawn(lambda: super(LocalLocustRunner, self).start_hatching(locust_count, hatch_rate, wait=wait))
         self.greenlet = self.hatching_greenlet
 
 class DistributedLocustRunner(LocustRunner):
@@ -241,7 +240,7 @@ class MasterLocustRunner(DistributedLocustRunner):
 
         self.clients = SlaveNodesDict()
         self.server = rpc.Server(self.master_bind_host, self.master_bind_port)
-        self.greenlet = Group()
+        self.greenlet = guv.GreenPool()
         self.greenlet.spawn(self.client_listener).link_exception(callback=self.noop)
 
         # listener that gathers info on how many locust users the slaves has spawned
@@ -351,7 +350,7 @@ class SlaveLocustRunner(DistributedLocustRunner):
         self.client_id = socket.gethostname() + "_" + md5(str(time() + random.randint(0,10000))).hexdigest()
 
         self.client = rpc.Client(self.master_host, self.master_port)
-        self.greenlet = Group()
+        self.greenlet = guv.GreenPool()
 
         self.greenlet.spawn(self.worker).link_exception(callback=self.noop)
         self.client.send(Message("client_ready", None, self.client_id))
@@ -388,7 +387,7 @@ class SlaveLocustRunner(DistributedLocustRunner):
                 #self.num_clients = job["num_clients"]
                 self.num_requests = job["num_requests"]
                 self.host = job["host"]
-                self.hatching_greenlet = gevent.spawn(lambda: self.start_hatching(locust_count=job["num_clients"], hatch_rate=job["hatch_rate"]))
+                self.hatching_greenlet = guv.spawn(lambda: self.start_hatching(locust_count=job["num_clients"], hatch_rate=job["hatch_rate"]))
             elif msg.type == "stop":
                 self.stop()
                 self.client.send(Message("client_stopped", None, self.client_id))

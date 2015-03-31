@@ -8,7 +8,8 @@ from itertools import chain
 from collections import defaultdict
 from io import StringIO
 
-from gevent import wsgi
+import guv
+from guv import wsgi
 from flask import Flask, make_response, request, render_template
 
 from . import runners
@@ -198,7 +199,8 @@ def exceptions_csv():
     return response
 
 def start(locust, options):
-    wsgi.WSGIServer((options.web_host, options.port), app, log=None).serve_forever()
+    server_sock = guv.listen((options.web_host, options.port))
+    wsgi.serve(server_sock, app).serve_forever()
 
 def _sort_stats(stats):
     return [stats[key] for key in sorted(stats.keys())]

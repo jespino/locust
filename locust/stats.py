@@ -1,6 +1,6 @@
 import time
-import gevent
 import hashlib
+import guv
 
 from . import events
 from .exception import StopLocust
@@ -249,7 +249,12 @@ class StatsEntry(object):
         self.num_failures = self.num_failures + other.num_failures
         self.total_response_time = self.total_response_time + other.total_response_time
         self.max_response_time = max(self.max_response_time, other.max_response_time)
-        self.min_response_time = min(self.min_response_time, other.min_response_time) or other.min_response_time
+
+        if self.min_response_time is None:
+            self.min_response_time = other.min_response_time
+        elif other.min_response_time is not None:
+            self.min_response_time = min(self.min_response_time, other.min_response_time)
+
         self.total_content_length = self.total_content_length + other.total_content_length
 
         if full_request_history:
@@ -365,7 +370,7 @@ class StatsError(object):
     @classmethod
     def create_key(cls, method, name, error):
         key = "%s.%s.%r" % (method, name, error)
-        return hashlib.md5(key).hexdigest()
+        return hashlib.md5(key.encode('utf-8')).hexdigest()
 
     def occured(self):
         self.occurences += 1
@@ -500,4 +505,4 @@ def stats_printer():
     from .runners import locust_runner
     while True:
         print_stats(locust_runner.request_stats)
-        gevent.sleep(2)
+        guv.sleep(2)
