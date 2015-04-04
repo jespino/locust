@@ -164,14 +164,17 @@ class WebserverTestCase(LocustTestCase):
     """
     def setUp(self):
         super(WebserverTestCase, self).setUp()
-        server_sock = guv.listen(("127.0.0.1", 0))
-        self._web_server = wsgi.serve(server_sock, app).serve_forever()
-        guv.spawn(lambda: self._web_server.serve_forever())
+
+        self._web_server = None
+
+        socket = guv.listen(("127.0.0.1", 0))
+        self._web_server = wsgi.WSGIServer(socket, app)
+
+        guv.spawn(lambda: self._web_server.start())
         guv.sleep(0.01)
-        self.port = self._web_server.server_port
+        self.port = socket.getsockname()[1]
         global_stats.clear_all()
 
     def tearDown(self):
         super(WebserverTestCase, self).tearDown()
-        self._web_server.stop_accepting()
         self._web_server.stop()
